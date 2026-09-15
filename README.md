@@ -10,15 +10,15 @@ The architecture used for this project is based on the reference architecture be
 
 ### AWS Services Used
 
-* **Amazon VPC** — Network isolation and subnet organization
-* **Public and Private Subnets** — Separation of internet-facing and application resources
-* **Security Groups** — Control of inbound and outbound traffic
-* **Amazon EC2** — Hosting the web servers
-* **NAT Gateway** — Providing outbound internet access to private instances
-* **Application Load Balancer (ALB)** — Distributing incoming traffic across web servers
-* **Amazon Route 53** — DNS management and routing the domain to the ALB
-* **AWS Certificate Manager (ACM)** — Provisioning the SSL/TLS certificate
-* **EC2 Auto Scaling** — Maintaining and scaling the web server fleet
+1 **Amazon VPC**
+2 **Public and Private Subnets**
+3 **Security Groups**
+4 **Amazon EC2**
+5 **NAT Gateway**
+6 **Application Load Balancer (ALB)**
+7 **Amazon Route 53**
+8 **AWS Certificate Manager (ACM)**
+9 **EC2 Auto Scaling**
 
 ### How the Components Worked Together
 
