@@ -24,12 +24,22 @@ The architecture used for this project is based on the reference architecture be
 
 The website was deployed using a **two-tier VPC architecture** consisting of public and private application subnets distributed across multiple Availability Zones. This design provides network isolation and improves availability by avoiding dependence on a single Availability Zone.
 
-#### 1. VPC and Subnets
+### 1. VPC and Subnets
 
-The VPC was divided into two logical tiers:
+The VPC was divided into public and private application subnets across multiple Availability Zones.
 
-* **Public subnets** — Hosted internet-facing resources such as the Application Load Balancer and NAT Gateways.
-* **Private application subnets** — Hosted the EC2 web servers, which did not have public IP addresses and were therefore not directly accessible from the internet.
+A key distinction between a **public subnet** and a **private subnet** is how their route tables provide connectivity to the internet:
+
+* **Public subnet:** A public subnet has a route in its route table to an **Internet Gateway (IGW)**. Resources deployed in a public subnet can communicate directly with the internet when they have the necessary public addressing and security-group rules. For example, the Application Load Balancer and NAT Gateways were deployed in the public subnets.
+
+* **Private subnet:** A private subnet does not have a direct route to an Internet Gateway. Instead, its route table can send outbound internet traffic to a **NAT Gateway**, which is deployed in a public subnet. Resources in the private subnet do not have public IP addresses and cannot receive unsolicited inbound connections directly from the internet. However, they can initiate outbound connections through the NAT Gateway, such as downloading packages, pulling files from GitHub, or accessing external APIs.
+
+In this project:
+
+* **Public subnets** hosted the **Application Load Balancer and NAT Gateways**.
+* **Private application subnets** hosted the **EC2 web servers**.
+
+This separation ensured that the web servers were not directly exposed to the internet, while still allowing them to access external resources when required.
 
 The subnets were distributed across multiple Availability Zones to improve availability and provide redundancy.
 
@@ -50,15 +60,16 @@ This allowed the private EC2 instances to initiate outbound internet connections
 
 #### 4. Security Groups
 
-Security Groups acted as **stateful virtual firewalls** at the instance and load-balancer level.
+Security Groups acted as **stateful virtual firewalls** controlling inbound and outbound traffic to the AWS resources.
 
-The security groups were layered to restrict communication between components:
+The security groups were layered to control which components could communicate with one another:
 
 * The **ALB security group** allowed inbound HTTP/HTTPS traffic from the internet.
-* The **web server security group** allowed inbound traffic only from the ALB security group rather than directly from the internet.
-* A separate **SSH security group** was configured to allow SSH access to the EC2 instances from my IP address for administration.
+* The **web server security group** allowed application traffic only from the **ALB security group**, rather than allowing direct application traffic from the internet.
+* An **SSH security group** was configured to allow SSH access from my IP address.
+* The **web server security group** also allowed SSH traffic from the **SSH security group**. This allowed the SSH access rule to be managed through a security-group reference rather than directly adding my IP address to the web server security group.
 
-This approach reduced the web servers' exposure by ensuring that normal application traffic reached them through the ALB.
+This layered approach restricted direct access to the web servers while allowing controlled administrative access when required.
 
 #### 5. EC2 Web Servers
 
