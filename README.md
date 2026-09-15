@@ -1,6 +1,6 @@
 ## How I Deployed an HTML Website on AWS
 
-I recently deployed an HTML website on AWS by following a course by Azeez Salu. Rather than simply following the deployment steps, I took time to understand the purpose of each AWS service and how the individual components worked together to deliver a highly available and secure architecture.
+I recently deployed an HTML website on AWS by following a course by Azeez Salu but rather than just following the tutorial and creating my own version of the project, I took time to understand the purpose of each AWS service used and how the individual components worked together to deliver a highly available and secure architecture. Let's explore this together.
 
 ### Reference Architecture
 
