@@ -1,12 +1,11 @@
 ## How I Deployed an HTML Website on AWS
 
-I recently deployed an HTML website on AWS by following a course by Azeez Salu and rather than just following the tutorial without asking questionds, I took time to understand the purpose of each AWS service used and how the individual components worked together to deliver a highly available and secure architecture. Let's explore this together.
+I recently deployed an HTML website on AWS by following a course by Azeez Salu and rather than just following the tutorial without asking questions, I took time to understand the purpose of each AWS service used and how the individual components worked together to deliver a highly available and secure architecture. Let's explore this together.
 
 ### Reference Architecture
 
 The architecture used for this project is based on the reference architecture below:
-<img width="463" height="408" alt="image" src="https://github.com/user-attachments/assets/c8cfbd53-5e3f-4079-b45b-d2f3784a840e" />
-
+<img width="1275" height="691" alt="Screenshot (407)" src="https://github.com/user-attachments/assets/91d578fe-5580-4004-bd14-4d8b674120c6" />
 
 ### AWS Services Used
 
@@ -32,14 +31,14 @@ A key distinction between a **public subnet** and a **private subnet** is how th
 
 * **Public subnet:** A public subnet has a route in its route table connected to an **Internet Gateway (IGW)**. Resources deployed in a public subnet can communicate directly with the internet when they have the necessary public addressing and security-group rules. For example, the Application Load Balancer and NAT Gateways were deployed in the public subnets.
 
-* **Private subnet:** A private subnet does not have a direct route to an Internet Gateway. Instead, its route table can send outbound internet traffic to a **NAT Gateway**, which is deployed in a public subnet. Resources in the private subnet do not have public IP addresses and cannot receive unsolicited inbound connections directly from the internet. However, they can initiate outbound connections through the NAT Gateway, such as downloading packages, pulling files from GitHub, or accessing external APIs.
+* **Private subnet:** A private subnet does not have a direct route to an Internet Gateway. Instead, its route table can send outbound internet traffic to a **NAT Gateway** deployed in a public subnet. Resources in the private subnet do not have public IP addresses and cannot receive unsolicited inbound connections directly from the internet. However, they can initiate outbound connections through the NAT Gateway, such as downloading packages, pulling files from GitHub, or accessing external APIs.
 
 In this project:
 
 * **Public subnets** hosted the **Application Load Balancer and NAT Gateways**.
 * **Private application subnets** hosted the **EC2 web servers**.
 
-This separation ensured that the web servers were not directly exposed to the internet, while still allowing them to access external resources when required.
+This separation ensured the web servers were not directly exposed to the internet while still allowing them to access external resources when needed.
 
 The subnets were distributed across multiple Availability Zones to improve availability and provide redundancy.
 
@@ -144,7 +143,7 @@ Enable **DNS hostnames** and select **Save changes**.
 
 <img width="1249" height="755" alt="Screenshot (416)" src="https://github.com/user-attachments/assets/cb68d331-0a09-4753-b9e0-75c45d7fbc3c" />
 
-## 2. Create an Internet Gateway
+#### 2. Create an Internet Gateway
 
 On the left-hand side of the VPC dashboard, select **Internet Gateways**, then select **Create Internet Gateway**.
 
@@ -159,7 +158,7 @@ Attach the Internet Gateway to the VPC created earlier.
 
 <img width="1249" height="771" alt="Screenshot (420)" src="https://github.com/user-attachments/assets/ee0deed4-6f21-4f62-a708-f97edf895f5a" />
 
-## 3. Create Two Public Subnets
+#### 3. Create Two Public Subnets
 
 <img width="1265" height="766" alt="Screenshot (421)" src="https://github.com/user-attachments/assets/900eb2e9-ca25-454e-8147-c65c13d1c421" />
 
@@ -195,7 +194,7 @@ Create the second public subnet using the same process:
 * **Availability Zone:** us-east-1b
 * **IPv4 CIDR block:** 10.0.1.0/24
 
-## 4. Create a Public Route Table
+#### 4. Create a Public Route Table
 
 The public route table will be used to connect the public subnets to the internet.
 
@@ -225,7 +224,7 @@ Select the two public subnets and save the association.
 
 <img width="1269" height="745" alt="Screenshot (433)" src="https://github.com/user-attachments/assets/a3bf9625-ad05-422e-8f6f-49ab3e306277" />
 
-## 5. Create the Private Subnets
+#### 5. Create the Private Subnets
 
 Next, create the private subnets.
 
@@ -243,7 +242,7 @@ Create the second private subnet using the following configuration:
 * **Availability Zone:** us-east-1b
 * **IPv4 CIDR block:** 10.0.3.0/24
 
-## 6. Create NAT Gateways
+#### 6. Create NAT Gateways
 
 Next, create the NAT Gateways.
 
@@ -255,7 +254,7 @@ Give the NAT Gateway a name and select the appropriate Availability Zone. For th
 
 Repeat the same process for **NAT Gateway AZ2**, creating it in **public-subnet-az2**.
 
-## 7. Create Private Route Tables
+#### 7. Create Private Route Tables
 
 Next, create private route tables for the private subnets.
 
@@ -273,7 +272,7 @@ Next, edit the **Subnet associations** and associate the route table with **priv
 
 Repeat the same steps to create a route table for **private-app-subnet-az2** and configure it to route outbound traffic through **NAT Gateway AZ2**.
 
-## 8. Create Security Groups
+#### 8. Create Security Groups
 
 Security groups are virtual firewalls attached to AWS resources that control inbound and outbound traffic at the resource level.
 
@@ -289,7 +288,7 @@ Finally, create the **web server security group**. Configure HTTP and HTTPS acce
 
 <img width="1239" height="723" alt="Screenshot (446)" src="https://github.com/user-attachments/assets/68cac0c1-9cc2-409d-a0b2-e1a77080474f" />
 
-## 9. Launch EC2 Instances and Install the Application
+#### 9. Launch EC2 Instances and Install the Application
 
 Next, launch the EC2 instances and install the application using a Bash script.
 
@@ -337,7 +336,7 @@ systemctl start httpd
 
 Repeat the same process for the second web server, creating it in **private-app-subnet-az2**.
 
-## 10. Create an Application Load Balancer and Target Group
+#### 10. Create an Application Load Balancer and Target Group
 
 Next, create an **Application Load Balancer** and a **target group** to attach the EC2 instances to the load balancer.
 
@@ -365,7 +364,7 @@ Select the two EC2 instances and choose **Include as pending below**.
 
 Review the settings and select **Create target group**.
 
-## 11. Create the Application Load Balancer
+#### 11. Create the Application Load Balancer
 
 From the left-hand side of the EC2 console, select **Load Balancers** and create a new load balancer.
 
@@ -402,6 +401,6 @@ The webpage should then be displayed in your browser.
 
 <img width="1245" height="847" alt="Screenshot (469)" src="https://github.com/user-attachments/assets/5a0d9e4a-ace0-4827-a904-ff26041f4c7b" />
 
-## Conclusion
+#### Conclusion
 
 This project provided practical experience in designing and deploying a **secure, highly available, and scalable AWS infrastructure**. Rather than relying on a single EC2 instance, the architecture used multiple Availability Zones, private subnets, an Application Load Balancer, NAT Gateways, and other AWS services to improve the reliability and security of the application.
