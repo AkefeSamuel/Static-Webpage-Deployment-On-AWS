@@ -1,6 +1,6 @@
 ## How I deployed a static website on AWS
 
-### Introduction 
+###Introduction 
 	What is a static website? A static website is a type of website that serves pre-built HTML files directly to users without any server-side processing. In this project we deployed a static webpage built by Azeez Salu on AWS and utilized a key number of services in bringing this project to life. More insights on how we built this project would be listed below.
 
  <img width="723" height="638" alt="image" src="https://github.com/user-attachments/assets/6f2a9ea9-0f7b-4369-8e4a-6ea77c4056c3" />
