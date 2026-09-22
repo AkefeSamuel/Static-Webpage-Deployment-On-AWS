@@ -1,406 +1,471 @@
-## How I Deployed an HTML Website on AWS
+How I deployed a static website on AWS
 
-I recently deployed an HTML website on AWS by following a course by Azeez Salu and rather than just following the tutorial without asking questions, I took time to understand the purpose of each AWS service used and how the individual components worked together to deliver a highly available and secure architecture. Let's explore this together.
+Introduction 
+	What is a static website? A static website is a type of website that serves pre-built HTML files directly to users without any server-side processing. In this project we deployed a static webpage built by Azeez Salu on AWS and utilized a key number of services in bringing this project to life. More insights on how we built this project would be listed below.
 
-### Reference Architecture
+ 
 
-The architecture used for this project is based on the reference architecture below:
-<img width="1275" height="691" alt="Screenshot (407)" src="https://github.com/user-attachments/assets/91d578fe-5580-4004-bd14-4d8b674120c6" />
+ 
+Key AWS services that we used
+1.	Virtual Private Cloud (VPC) with Public and Private Subnets.
+2.	Security Groups
+3.	Elastic Compute Cloud (EC2) 
+4.	Network Address Translation (NAT) Gateways
+5.	Application Load Balancer (ALB)
+6.	Route53
+7.	Certificate Manager
+8.	Autoscaling groups.
 
-### AWS Services Used
+How were these services used?
+1.	Virtual Private Cloud (VPC) with Public and Private Subnets: The AWS Virtual Private Cloud enabled you to provision a logically isolated section of the AWS Cloud where we could launch AWS resources in a virtual network that we defined. The VPC was made up of two tiers. The first tier contained a public subnet and it hosted resources such our NAT gateways and our application load balancer. The second tier contained private subnets that housed our webservers. The subnets were duplicated across multiple availability zones in order to ensure high availability and fault tolerance. We also created an internet gateway with route tables in order to allow the resources in our VPC have access to the internet.
+2.	Security groups: The Security Groups acted as virtual firewalls that protect resources such as our EC2 instances (webservers). They filter incoming traffic into our AWS resources.
+3.	Elastic Compute Cloud (EC2): These are virtual servers on which our website was installed in.
+4.	Network Address Translation (NAT) Gateways: These were placed in the public subnets in order to allow outbound internet access from our webservers whenever they needed to download updates, packages and also pull zip files from GitHub.
+5.	Application Load Balancer: The Application Load Balancer was used to dynamically distribute traffic across EC2 instances in order to prevent a single server from being overwhelmed.
+6.	Route 53: This was used to create a record set in order to point our domain name to the Application load balancer.
+7.	Certificate Manager: This was used to create a Secure Sockets Layer (SSL) certificate in order to encrypt all communication between our web browser and our web servers.
+8.	Autoscaling groups: The Autoscaling groups were used to dynamically create and scale our EC2 instances in the private app subnets.
+How did I build this?
+1.	Create a custom VPC using the reference architecture.
+a.	On the AWS Management, select the N.Virginia region and in the search box, type vpc and select it.
+ 
 
-1. **Amazon VPC**
-2. **Public and Private Subnets**
-3. **Security Groups**
-4. **Amazon EC2**
-5. **NAT Gateway**
-6. **Application Load Balancer (ALB)**
-7. **Amazon Route 53**
-8. **AWS Certificate Manager (ACM)**
-9. **EC2 Auto Scaling**
 
-### How the Components Worked Together
+ 
 
-The website was deployed using a **two-tier VPC architecture** consisting of public and private application subnets distributed across multiple Availability Zones. This design provides network isolation and improves availability and fault tolerance by avoiding dependence on a single Availability Zone.
+b.	Select the Create VPC icon and select it.
 
-### 1. VPC and Subnets
+ 
+c.	Select VPC only and give it a name tag. I am naming mine dev-vpc. Give it a CIDR range also, I would be using 10.0.0.0./16. Leave everything else as default and create your VPC.
+ 
 
-The VPC was divided into public and private application subnets across multiple Availability Zones.
 
-A key distinction between a **public subnet** and a **private subnet** is how their route tables provide connectivity to the internet:
+ 
+d.	Next select the actions tab then select edit VPC settings.
 
-* **Public subnet:** A public subnet has a route in its route table connected to an **Internet Gateway (IGW)**. Resources deployed in a public subnet can communicate directly with the internet when they have the necessary public addressing and security-group rules. For example, the Application Load Balancer and NAT Gateways were deployed in the public subnets.
+ 
 
-* **Private subnet:** A private subnet does not have a direct route to an Internet Gateway. Instead, its route table can send outbound internet traffic to a **NAT Gateway** deployed in a public subnet. Resources in the private subnet do not have public IP addresses and cannot receive unsolicited inbound connections directly from the internet. However, they can initiate outbound connections through the NAT Gateway, such as downloading packages, pulling files from GitHub, or accessing external APIs.
+e.	Tap enable DNS hostnames and save your configuration.
+ 
 
-In this project:
+2.	Create an Internet Gateway. The Internet Gateway enables your VPC to communicate with the internet.
+a.	On the lefthand side of the management console, select internet gateway from the list of options and Create Internet Gateway.
+ 
 
-* **Public subnets** hosted the **Application Load Balancer and NAT Gateways**.
-* **Private application subnets** hosted the **EC2 web servers**.
+b.	Name it dev-igw, then create it.
+ 
 
-This separation ensured the web servers were not directly exposed to the internet while still allowing them to access external resources when needed.
 
-The subnets were distributed across multiple Availability Zones to improve availability and provide redundancy.
 
-#### 2. Internet Gateway
+c.	Next, select Attach to a VPC.
 
-An **Internet Gateway (IGW)** was attached to the VPC to provide internet connectivity for resources in the public subnets.
+ 
 
-#### 3. Route Tables
+d.	Select your VPC from the list of options and attach.
+ 
 
-Route tables controlled how traffic was routed within and outside the VPC.
 
-* The **public route table** was associated with the public subnets and contained a route to the Internet Gateway.
-* The **private route table** was associated with the private application subnets and contained a route to the NAT Gateway.
 
-This allowed the private EC2 instances to initiate outbound internet connections without exposing them directly to inbound internet traffic.
 
-#### 4. Security Groups
 
-Security Groups acted as **stateful virtual firewalls** controlling inbound and outbound traffic to the AWS resources.
+3.	Create your public subnets AZ1.
+a.	On the lefthand side of your management console, select subnets and then Create Subnet.
 
-The security groups were layered to control which components could communicate with one another:
+ 
+b.	Select your dev-vpc
+ 
 
-* The **ALB security group** allowed inbound HTTP/HTTPS traffic from the internet.
-* An **SSH security group** was configured to allow SSH access from my IP address.
-* The **web server security group** allowed application traffic and SSH traffic from the **ALB security group** and **SSH security group**, respectively, rather than allowing direct application traffic from the internet.
 
-This layered approach restricted direct access to the web servers while allowing controlled administrative access when required.
 
-#### 5. EC2 Web Servers
 
-The HTML website was hosted on **Amazon EC2 instances** located in the private application subnets.
+c.	Edit your subnet settings.
+ 
 
-Because these instances did not have public IP addresses, they could not be accessed directly from the internet. Instead, they received application traffic from the Application Load Balancer.
+d.	Create Subnet.
+ 
 
-The website files were maintained in a GitHub repository and downloaded onto the EC2 instances during deployment.
 
-#### 6. NAT Gateway
 
-The **NAT Gateways** were deployed in the public subnets and referenced by the private subnet route tables.
 
-They allowed the private EC2 instances to initiate outbound connections to the internet, such as downloading packages, updates, or the website files from GitHub, while preventing unsolicited inbound connections from the internet.
 
-#### 7. Auto Scaling Group
 
-An **Auto Scaling Group (ASG)** was used to dynamically create and scale our EC2 instances in the private app subnets based on incoming traffic to the application load balancer.
+e.	Next, select the subnet you just created and click on the actions icon then edit subnet settings.
+ 
 
-The ASG launched instances using a predefined launch template and distributed them across multiple Availability Zones. It helped to:
+f.	Enable auto-assign public IPv4 address. This is done so that all resources created in this subnet are automatically assigned a public ipv4 address.
+ 
 
-* Maintain the desired number of instances
-* Launch additional instances when scaling conditions were met
-* Terminate instances when scaling down
-* Replace unhealthy instances based on health checks
 
-This helped improve the availability and resilience of the application by ensuring that the web server fleet was not dependent on a single EC2 instance.
 
-#### 8. Application Load Balancer
 
-The **Application Load Balancer (ALB)** was deployed across the public subnets in multiple Availability Zones.
 
-It served as the public entry point for the website and distributed incoming requests across healthy EC2 instances registered in its target group.
+g.	Save changes.
+ 
 
-This meant users did not need to connect directly to individual EC2 instances.
+4.	Create your public subnet AZ2 using the same steps we used to create the public subnet AZ1. However, give it the following values.
+a.	Name public-subnet-AZ2
+b.	Availability Zone: us-east-1b
+c.	IPv4 CIDR block: 10.0.1.0/24.
+Afterwards, enable auto-assign public IPv4 address from the part edit subnet settings like we did earlier.
 
-#### 9. Route 53
+5.	Create a public route table in order to route traffic from our public subnet to the internet through the internet gateway.
+a.	On the lefthand part of the management console, select route tables and create route table.
+ 
+b.	Next, give your route table a name and select your VPC.
+ 
+c.	Create your route table.
+ 
+d.	Next, we will be adding a public route in order to route our traffic to the Internet. On the page you are redirected to after creating your route table, select the route section and edit route.
+ 
 
-**Amazon Route 53** was used to manage the DNS record for my domain.
+e.	Click on Add route and select 0.0.0.0/0. This is the destination address for the internet. Then select Internet Gateway as the target, and your dev internet gateway under it then save changes.
+ 
+ 
 
-The domain was configured with a record that directed traffic to the Application Load Balancer. This allowed users to access the website using the domain name instead of the ALB's automatically generated DNS name.
+f.	Next, we will be editing our subnet associations in order to attach both of our public subnets to the route table. On the lefthand side of the management console, select route tables then edit your subnet associations.
+ 
 
-#### 10. AWS Certificate Manager
 
-**AWS Certificate Manager (ACM)** was used to provision an SSL/TLS certificate for the domain.
 
-The certificate was attached to the ALB's HTTPS listener, allowing the ALB to terminate HTTPS connections from users.
 
-### Here is how we built the project
 
-We started the building process by:
 
-#### 1. Creating a custom 2-tier VPC with public and private subnets. The first tier contained the public subnet while the second tier contained the private app subnet which was duplicated across multiple availability zones in order to promote high availability and fault tolerance in case any availability zone experiences any outage.
+g.	Select both public subnets then save association.
+ 
 
-In creating the VPC, we followed these steps:
-##### a. On the AWS Management Console, click on the search bar and type VPC then select it
-<img width="1012" height="827" alt="Screenshot (410)" src="https://github.com/user-attachments/assets/db044f27-9e9d-4594-baf8-20925193cc58" />
+6.	Create your private subnets.
+a.	Similar to how we did earlier, on the leftmost hand side of your AWS Management Console, select subnets and create subnet.
+ 
+b.	Select your dev VPC, give it the following configurations then create subnet.
+Name: private-app-subnet-az1
+Availability Zone: us-east-1a
+IPv4 subnet CIDR block: 10.0.2.0/24.
+c.	Create your second private app subnet. Similar to how we created the subnets above, we would select subnets on the leftmost hand side of our AWS management console and select create subnet.
+ 
 
-Then, select **Create VPC**.
+d. Select your dev VPC, give it the following configurations then create subnet.
+Name: private-app-subnet-az2
+Availability Zone: us-east-1b
+IPv4 subnet CIDR block: 10.0.3.0/24.
+Note that the configurations here are different from the private app subnet AZ1.
+We won’t also enable auto-assign public IPv4 address because it is a private subnet and we don’t want our resources exposed to the public internet. We would be deploying our webservers in the private subnets.
 
-<img width="1261" height="780" alt="Screenshot (411)" src="https://github.com/user-attachments/assets/62ddb04f-a107-4035-8117-0c41be5ce5e2" />
+7.	Create NAT gateways and private route tables in the first and second Availability zones.
+a.	On the leftmost hand side of the AWS management console, select NAT gateways and create your NAT gateway.
+ 
 
-Select **VPC only** and provide a name tag. For this project, I named the VPC **dev-vpc**.
+b.	Give it a name. We would be naming ours nat-gateway-az1 and under availability mode, we would be selecting zonal. Lastly under subnet we would be selecting public subnet az1 as the NAT gateways need to be in a public subnet in order get access to the internet. They serve to allow outbound internet access from private subnets in cases where packages and updates have to be downloaded from the resources there.
+ 
+c.	Select allocate Elastic IP, wait till you see an elastic IP address in the allocation textbox then leave other settings as default then create NAT gateway AZ1. It is called NAT Gateway AZ1 because it is deployed in the first availability zone (us-east-1a).
+ 
+ 
+d.	Create private route az1 to route traffic from the resources in the private subnet az1 to the NAT gateway AZ1. On the leftmost part of the management console, select Route tables and create route table.
+ 
+e.	Give it a name, select your VPC and create your route table.
+ 
 
-Enter the same CIDR block used in the reference architecture: **10.0.0.0/16**. Leave the remaining settings as default and select **Create VPC**.
+ 
 
-<img width="1244" height="763" alt="Screenshot (412)" src="https://github.com/user-attachments/assets/27233207-6ba9-4f1d-aaab-2b55fda22a6f" />
-<img width="1246" height="770" alt="Screenshot (413)" src="https://github.com/user-attachments/assets/b9bbb3ce-0a69-4f36-b21c-61d4fe0d9a3b" />
 
-Next, select the **Actions** tab and choose **Edit VPC settings**.
 
-<img width="1276" height="763" alt="Screenshot (425)" src="https://github.com/user-attachments/assets/a905556e-594f-45aa-b0d0-3a223a54b3a7" />
 
-Enable **DNS hostnames** and select **Save changes**.
 
-<img width="1249" height="755" alt="Screenshot (416)" src="https://github.com/user-attachments/assets/cb68d331-0a09-4753-b9e0-75c45d7fbc3c" />
 
-#### 2. Create an Internet Gateway
+f.	Next, we will be editing the routes of the private-route-table-az1 to route outbound traffic to the internet through the NAT gateway AZ1. On the management console, select routes and edit the route of your private-route-table-az1.
+ 
+g.	Similar to how we did it earlier, select add route then select 0.0.0.0/0.
+ 
 
-On the left-hand side of the VPC dashboard, select **Internet Gateways**, then select **Create Internet Gateway**.
 
-<img width="1268" height="765" alt="Screenshot (417)" src="https://github.com/user-attachments/assets/87480726-34fb-4e4d-a8df-59266977c21f" />
-<img width="1243" height="765" alt="Screenshot (418)" src="https://github.com/user-attachments/assets/9b356824-42a0-4e50-88d4-0a811ca0482f" />
 
-Give the Internet Gateway a name and select **Create Internet Gateway**.
 
-<img width="1249" height="771" alt="Screenshot (420)" src="https://github.com/user-attachments/assets/ee0deed4-6f21-4f62-a708-f97edf895f5a" />
 
-Attach the Internet Gateway to the VPC created earlier.
 
-<img width="1249" height="771" alt="Screenshot (420)" src="https://github.com/user-attachments/assets/ee0deed4-6f21-4f62-a708-f97edf895f5a" />
+h.	Select NAT Gateway and select NAT Gateway AZ1 then select save changes.
+ 
+i.	Next, we would be editing subnet associations for the private-route-table-az1.
+ 
 
-#### 3. Create Two Public Subnets
 
-<img width="1265" height="766" alt="Screenshot (421)" src="https://github.com/user-attachments/assets/900eb2e9-ca25-454e-8147-c65c13d1c421" />
 
-Select **Filter by VPC**, then select the VPC you created. This ensures that only the subnets associated with your VPC are displayed and helps prevent configuration errors.
 
-<img width="1260" height="762" alt="Screenshot (422)" src="https://github.com/user-attachments/assets/4b661c7a-6d55-4e4c-b6da-015cad85345f" />
 
-Select your VPC under the **VPC ID** section and enter the values specified in the reference architecture.
 
-For the first public subnet:
+j.	Click edit subnet settings and select private-app-subnet-az1and save associations. Remember, this route table is for our availability zone us-east-1a.
+ 
+Now we have added a route to our NAT gateway and have also associated our private-app-subnet-az1 to our private-route-table-az1. Next we would be doing the same for our second availability zone.
+k.	Using the same steps above, create NAT gateway AZ2 in the us-east-1b availability zone then create a route table and create a public route to the NAT gateway AZ2 you crated then associate your private-app-subnet-az2 to it from the subnet associations section under the private-route-table-az2 configurations.
 
-* **Name:** public-subnet-az1
-* **Availability Zone:** us-east-1a
-* **IPv4 CIDR block:** 10.0.0.0/24
+8.	Next, we would be creating our security groups. Security groups are stateless firewalls that filter incoming traffic at your resource level. i.e. the filter the traffic that come into your instances. On the lefthand side of your management console, select security groups and create security group.
+ 
+a.	First, we would be creating the Application Load Balancer Security group. We would be opening port 80 and 443 in order to allow http and https access from the internet respectively. Give the security group a name, description and select your dev vpc.
+ 
+b.	Add inbound rules http and https on port 80 and 443 respectively and let their source be the internet (0.0.0.0/0).
+ 
 
-<img width="1251" height="765" alt="Screenshot (423)" src="https://github.com/user-attachments/assets/a0f8d95a-707f-4488-93f9-40d09a85e3aa" />
 
-Leave the remaining settings as default and select **Create subnet**.
 
-<img width="1250" height="763" alt="Screenshot (424)" src="https://github.com/user-attachments/assets/5262dab4-84ea-4d61-ab56-e17d4787a30b" />
 
-After creating the subnet, select it, click the **Actions** tab, and select **Edit subnet settings**.
 
-<img width="1276" height="763" alt="Screenshot (425)" src="https://github.com/user-attachments/assets/a905556e-594f-45aa-b0d0-3a223a54b3a7" />
 
-Enable **Auto-assign IPv4 address** and save the changes.
+c.	Leave other settings as default and select create security group.
+ 
+d.	Next, we would be creating our ssh security group in order to allow us ssh into our ec2 instances. Similar to how we created the first security group, go to the create security group page. Give it a name, description and select your VPC.
+ 
 
-<img width="1247" height="760" alt="Screenshot (426)" src="https://github.com/user-attachments/assets/dccf2027-64dd-4262-ba07-48f1cdbde450" />
 
-Create the second public subnet using the same process:
 
-* **Name:** public-subnet-az2
-* **Availability Zone:** us-east-1b
-* **IPv4 CIDR block:** 10.0.1.0/24
 
-#### 4. Create a Public Route Table
 
-The public route table will be used to connect the public subnets to the internet.
+e.	Next, add inbound rules. Create an inbound rule of type SSH and make your IP address the source then create your SSH security group.
+ 
+ 
 
-On the left-hand side of the VPC dashboard, select **Route Tables**, then select **Create route table**.
 
-<img width="1269" height="757" alt="Screenshot (428)" src="https://github.com/user-attachments/assets/b336a4f2-3907-4f3f-acf2-8d9c8f898588" />
 
-Give the route table a name and select your VPC, then select **Create route table**.
 
-<img width="1280" height="766" alt="Screenshot (429)" src="https://github.com/user-attachments/assets/973c2ecd-b3e4-4cab-b941-21241c2d54e3" />
 
-Next, edit the routes to create a route that connects the route table to the internet through the Internet Gateway.
 
-Add the following route:
 
-* **Destination:** 0.0.0.0/0
-* **Target:** Internet Gateway
-* **Gateway:** Your Internet Gateway
+f.	Up next, we will be creating our webserver security group. Give it a name, description and select your dev vpc.
+ 
+g.	Next, add your inbound rules. HTTP, HTTPS and SSH respectively. For the http and https types, make their source, the alb security group while you make the ssh security group the source for the ssh rule type.
+ 
 
-<img width="1247" height="766" alt="Screenshot (431)" src="https://github.com/user-attachments/assets/dc4473ca-e50f-4e09-8187-739efd6b49c3" />
 
-Next, select **Subnet associations** and edit the subnet associations to attach both public subnets to the route table.
 
-<img width="1281" height="754" alt="Screenshot (432)" src="https://github.com/user-attachments/assets/db9f0a1b-00bc-4d69-8706-6c19e597cda3" />
 
-Select the two public subnets and save the association.
 
-<img width="1269" height="745" alt="Screenshot (433)" src="https://github.com/user-attachments/assets/a3bf9625-ad05-422e-8f6f-49ab3e306277" />
+h.	Create your webserver security group.
+ 
+9.	Create EC2 instances in your private subnets.
+a.	On your AWS Management Console, select EC2 in the search bar.
+ 
 
-#### 5. Create the Private Subnets
 
-Next, create the private subnets.
 
-For the first private subnet:
 
-* **Name:** private-app-subnet-az1
-* **Availability Zone:** us-east-1a
-* **IPv4 CIDR block:** 10.0.2.0/24
+b.	Click launch instance.
+ 
+c.	Name your EC2 instance webserver az1 and select the amazon linux AMI.
+ 
 
-<img width="1225" height="770" alt="Screenshot (435)" src="https://github.com/user-attachments/assets/c3c7a388-405e-43c0-80d7-6bb179baa648" />
 
-Create the second private subnet using the following configuration:
 
-* **Name:** private-app-subnet-az2
-* **Availability Zone:** us-east-1b
-* **IPv4 CIDR block:** 10.0.3.0/24
 
-#### 6. Create NAT Gateways
 
-Next, create the NAT Gateways.
 
-<img width="1248" height="760" alt="Screenshot (436)" src="https://github.com/user-attachments/assets/d482ea32-fb9f-4536-b811-00c90e2cf41b" />
 
-Give the NAT Gateway a name and select the appropriate Availability Zone. For the first NAT Gateway, select **public-subnet-az1** and allocate an **Elastic IP address** to it.
+d.	Leave the Amazon Linux 2023 as default. Same as the architecture. Leave at default.
+ 
+e.	Pick t3.micro as your instance type as it is free tier eligible.
+ 
 
-<img width="1227" height="760" alt="Screenshot (438)" src="https://github.com/user-attachments/assets/65a52702-df5f-4e0d-8715-06ac2492e6e2" />
 
-Repeat the same process for **NAT Gateway AZ2**, creating it in **public-subnet-az2**.
 
-#### 7. Create Private Route Tables
 
-Next, create private route tables for the private subnets.
 
-First, create a private route table for the private application subnet in **us-east-1a**.
 
-<img width="1269" height="740" alt="Screenshot (439)" src="https://github.com/user-attachments/assets/734e565f-9b74-4fda-b9ad-f849afe50475" />
 
-Edit the routes and configure the default route to use **NAT Gateway AZ1**, then save the changes.
-
-<img width="1269" height="765" alt="Screenshot (440)" src="https://github.com/user-attachments/assets/4a67c6f6-791d-446b-bfa9-9cce76b0dfe4" />
-
-Next, edit the **Subnet associations** and associate the route table with **private-app-subnet-az1**.
-
-<img width="1252" height="748" alt="Screenshot (441)" src="https://github.com/user-attachments/assets/a94c34f5-088c-4453-bca7-5a78375ccb4a" />
-
-Repeat the same steps to create a route table for **private-app-subnet-az2** and configure it to route outbound traffic through **NAT Gateway AZ2**.
-
-#### 8. Create Security Groups
-
-Security groups are virtual firewalls attached to AWS resources that control inbound and outbound traffic at the resource level.
-
-First, create the **ALB security group**.
-
-<img width="1261" height="765" alt="Screenshot (443)" src="https://github.com/user-attachments/assets/16861885-9a97-4c68-a818-975fd4f96cd1" />
-
-Next, create the **SSH security group**.
-
-<img width="1267" height="776" alt="Screenshot (444)" src="https://github.com/user-attachments/assets/69f603f7-8015-4b2b-baf3-b6126479a7e3" />
-
-Finally, create the **web server security group**. Configure HTTP and HTTPS access so that the source is the **ALB security group**. Configure SSH access so that the source is the **SSH security group**.
-
-<img width="1239" height="723" alt="Screenshot (446)" src="https://github.com/user-attachments/assets/68cac0c1-9cc2-409d-a0b2-e1a77080474f" />
-
-#### 9. Launch EC2 Instances and Install the Application
-
-Next, launch the EC2 instances and install the application using a Bash script.
-
-In the search bar, type **EC2** and select **Launch instance**.
-
-<img width="1037" height="829" alt="Screenshot (448)" src="https://github.com/user-attachments/assets/48cdec69-8f00-405e-97f9-971d0c26d193" />
-
-Give the instance a name and select the **Amazon Linux AMI**, using **Amazon Linux 2023**.
-
-<img width="1269" height="786" alt="Screenshot (449)" src="https://github.com/user-attachments/assets/ea46587f-e8f6-48cf-9316-959b6c40288f" />
-
-<img width="829" height="399" alt="Screenshot (450)" src="https://github.com/user-attachments/assets/db70476f-c284-44eb-9632-1c6ef586e8e7" />
-
-Under the network settings, select **dev-vpc**, choose **private-app-subnet-az1**, and select the **webserver security group**.
-
-<img width="1255" height="766" alt="Screenshot (451)" src="https://github.com/user-attachments/assets/75e74ab0-5d56-407e-a4c6-d9d8e41d62db" />
-
-Leave the storage settings as default. Under **Advanced details**, upload the Bash script.
-
-<img width="938" height="94" alt="Screenshot (452)" src="https://github.com/user-attachments/assets/a782a335-7291-415f-887f-3c1306df7b14" />
-
-The Bash script used to install and configure the web server is:
-
-```bash
+f.	Create an RSA keypair and select it.
+ 
+g.	Next, edit your network settings. Select your dev-vpc, your private-app-subnet-az1and select existing security group then select your webserver security group.
+ 
+ 
+h.	Leave the storage as default then select advanced details
+ 
+ 
+i.	After selecting advanced details, scroll to the end and paste this code in the User data section then select Launch Instance.
 #!/bin/bash
-
 dnf update -y
-
 dnf install -y httpd unzip wget
-
 cd /var/www/html
-
 wget https://github.com/azeezsalu/jupiter/archive/refs/heads/main.zip
-
 unzip main.zip
-
 cp -r jupiter-main/* /var/www/html/
-
 rm -rf jupiter-main main.zip
-
 systemctl enable httpd
-
 systemctl start httpd
-```
+ 
+j.	Create another EC2 instance in the private app subnet az2 using the same steps we took. Select the same steps we took above, however in the network settings, select private app subnet az2.
 
-Repeat the same process for the second web server, creating it in **private-app-subnet-az2**.
 
-#### 10. Create an Application Load Balancer and Target Group
+10.	Create an application load balancer to distribute incoming traffic between our provisioned EC2 instances.
+a.	On the lefthand side of the EC2 console, select target groups then create target groups. The target groups specify the instances we are connecting our application load balancer to.
+ 
+b.	Select instances
+ 
 
-Next, create an **Application Load Balancer** and a **target group** to attach the EC2 instances to the load balancer.
 
-### Create a Target Group
 
-From the EC2 console, select **Target Groups** from the left-hand navigation menu.
 
-<img width="1263" height="756" alt="Screenshot (453)" src="https://github.com/user-attachments/assets/11d7b3bd-3561-49d1-bab7-27a208b5a5ad" />
 
-Select **Create target group** and provide a name for the target group.
+c.	Give it a name then leave these other settings as default.
+ 
+d.	Select your dev vpc
+ 
+e.	Leave other settings as default then select next.
+ 
+f.	Select both instances you created and include as pending below.
+ 
+g.	Select next.
+ 
 
-<img width="1241" height="760" alt="Screenshot (454)" src="https://github.com/user-attachments/assets/272c53d4-b683-4083-b02b-3796dc9b636f" />
 
-Leave the other settings as default and configure the health check success codes to include **200, 301, and 302**.
 
-<img width="1238" height="766" alt="Screenshot (455)" src="https://github.com/user-attachments/assets/24bf1f45-586e-4f09-a18e-0887533969f7" />
 
-Select **Next**.
 
-<img width="1240" height="750" alt="Screenshot (456)" src="https://github.com/user-attachments/assets/1913ef6e-e485-49d5-8de2-5a54afcac471" />
 
-Select the two EC2 instances and choose **Include as pending below**.
 
-<img width="1258" height="771" alt="Screenshot (458)" src="https://github.com/user-attachments/assets/20086f45-b0f2-4dba-96d1-23e487009b18" />
+h.	On the next page, scroll to the end then create target group.
+ 
+i.	Next on the leftmost side of the EC2 console, select Application Load Balancer and Create Application Load Balancer.
+ 
 
-Review the settings and select **Create target group**.
 
-#### 11. Create the Application Load Balancer
 
-From the left-hand side of the EC2 console, select **Load Balancers** and create a new load balancer.
 
-<img width="1277" height="769" alt="Screenshot (459)" src="https://github.com/user-attachments/assets/a15ad038-1fa2-45c0-9be8-a3bd90f85047" />
 
-Select **Application Load Balancer**.
 
-<img width="3727" height="1534" alt="Screenshot (461)" src="https://github.com/user-attachments/assets/be834aff-3e22-496d-a8ca-1229e9b7d3c1" />
 
-Select **dev-vpc** and choose the two public subnets:
+j.	Select Application Load Balancer then Create.
+ 
+k.	Give it a name and leave scheme and IP address type as default.
+ 
 
-* **public-subnet-az1** — us-east-1a
-* **public-subnet-az2** — us-east-1b
 
-<img width="1277" height="769" alt="Screenshot (465)" src="https://github.com/user-attachments/assets/d26084c0-a90f-49a9-837d-bc99482c865e" />
 
-Select the **ALB security group**.
 
-<img width="1244" height="757" alt="Screenshot (466)" src="https://github.com/user-attachments/assets/a6353b09-f81d-4490-9a71-0e1ffac26bf5" />
 
-Configure the **HTTP listener** and select the target group created earlier.
 
-<img width="1247" height="767" alt="Screenshot (467)" src="https://github.com/user-attachments/assets/48519a35-5bc5-4ae5-be46-a724c175c99d" />
 
-Leave the remaining settings as default and select **Create load balancer**.
+l.	Select your dev-vpc.
+ 
+m.	Select your availability zones and ensure its in a public subnet(s) so it can connect to the internet.
+ 
 
-Wait until the Application Load Balancer's status changes to **Active**. Then copy the ALB's **DNS name** and paste it into your browser.
 
-At this stage, use **HTTP** rather than **HTTPS**, since an HTTPS listener has not yet been configured.
 
-<img width="1248" height="754" alt="Screenshot (468)" src="https://github.com/user-attachments/assets/cb215eb4-8798-4561-9565-f214ff0e50c0" />
 
-The webpage should then be displayed in your browser.
 
-<img width="1245" height="847" alt="Screenshot (469)" src="https://github.com/user-attachments/assets/5a0d9e4a-ace0-4827-a904-ff26041f4c7b" />
 
-#### Conclusion
 
-This project provided practical experience in designing and deploying a **secure, highly available, and scalable AWS infrastructure**. Rather than relying on a single EC2 instance, the architecture used multiple Availability Zones, private subnets, an Application Load Balancer, NAT Gateways, and other AWS services to improve the reliability and security of the application.
+n.	Remove the default security group and select your alb security group.
+ 
+o.	Under listeners and routing, select the target group that you just created.
+ 
+ 
+p.	Scroll to the end then create load balancer.
+ 
+q.	Once the status of the Application Load Balancer is active, copy the DNS name paste into your web browser in this manner http://yourDNSname. Ensure it’s not pasting as https:// since we’ve not created an HTTPS listener yet.
+ 
+
+
+
+
+
+
+r.	Here, our website is live.
+ 
+11.	I would record a video on how I linked my third-party acquired domain name to route 53 and also how I used Certificate Manager to create a free SSL certificate.
+12.	The last thing we would be doing is to create an autoscaling group to dynamically create and destroy EC2 instances based on traffic demands.
+a.	Terminate the existing EC2 instances. On your AWS management console, delete the two instances you created earlier so we can create an autoscaling group to recreate the instances back. Select the two instances then select the instance state icon select terminate instance.
+ 
+
+b.	After the instances have deleted, select launch templates on the leftmost side of the EC2 dashboard.
+ 
+c.	Give your launch template a name and description then select autoscaling guidance.
+ 
+
+
+
+
+
+
+
+d.	Select Quick Start and select your Amazon Linux AMI.
+ 
+e.	Under Instance type, select t3.micro.
+ 
+
+
+
+
+
+
+
+f.	Under network settings, select your webserver security group under existing security groups.
+ 
+g.	Scroll to advanced details and paste your bash script just like we did earlier then create launch template.
+ 
+
+
+
+
+
+
+h.	On the EC2 console, select Auto Scaling Groups then create auto scaling group.
+ 
+i.	Give it a name and select launch template then click next.
+ 
+
+
+
+
+
+
+
+j.	Select your VPC and availability zones then scroll and click next.
+ 
+k.	Select attach to an existing load balancer and select your load balancer’s target group.
+ 
+
+
+
+
+
+
+
+l.	Scroll down and enable Elastic Load Balancing health checks then click next.
+ 
+m.	Select your desired capacities, then click next.
+ 
+
+
+
+
+
+
+
+n.	I won’t be adding notifications. Click next.
+ 
+o.	Give it a nametag then click next.
+ 
+
+
+
+
+
+
+
+
+p.	Scroll down and create Autoscaling Group.
+ 
+q.	Once it says at desired capacity, it means both of your webservers have launched.
+ 
+r.	Go back and paste http://yourapplicationloadbalancerDNSname and tell me what you see.
+
+
+
+
+13.	Now let’s delete our resources.
+Delete them in this order:
+a.	Autoscaling Groups
+b.	Launch Template
+c.	Application Load Balancer
+d.	Target Groups
+e.	Security groups. Delete the webserver sg first then the others.
+f.	NAT gateways
+g.	VPC
+h.	Elastic IPs
+Thank you for staying this long with me. I hope you had a great time.
